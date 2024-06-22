@@ -54,21 +54,32 @@ import org.apache.ibatis.util.MapUtil;
 public class Reflector {
 
   private static final MethodHandle isRecordMethodHandle = getIsRecordMethodHandle();
+  // 要被反射解析的类
   private final Class<?> type;
+  // 能够读的属性列表
   private final String[] readablePropertyNames;
+  // 能够写的属性列表
   private final String[] writablePropertyNames;
+  // set方法映射表
   private final Map<String, Invoker> setMethods = new HashMap<>();
+  // get方法映射表
   private final Map<String, Invoker> getMethods = new HashMap<>();
+  // set方法输入类型。键为属性名，值为对应的该属性的set方法的类型（实际为set方法的第一个参数的类型）
   private final Map<String, Class<?>> setTypes = new HashMap<>();
+  // get方法输入类型。键为属性名，值为对应的该属性的get方法的类型（实际为get方法的返回值类型）
   private final Map<String, Class<?>> getTypes = new HashMap<>();
+  // 默认构造函数
   private Constructor<?> defaultConstructor;
-
+  // 大小写无关的属性映射表。键为属性名全大写值，值为属性名
   private final Map<String, String> caseInsensitivePropertyMap = new HashMap<>();
 
   public Reflector(Class<?> clazz) {
     type = clazz;
+    // 设置默认构造器
     addDefaultConstructor(clazz);
+    // 获取所有的函数对象，包括从所有父类和实现的接口中继承或实现的函数（不包含从Object中继承的函数）
     Method[] classMethods = getClassMethods(clazz);
+    // 对于Record类型的数据，只需要设置getMethod
     if (isRecord(type)) {
       addRecordGetMethods(classMethods);
     } else {
@@ -93,14 +104,18 @@ public class Reflector {
 
   private void addDefaultConstructor(Class<?> clazz) {
     Constructor<?>[] constructors = clazz.getDeclaredConstructors();
+    // 找到构造器参数为0的那个构造器，否则获取第一个声明的构造器
     Arrays.stream(constructors).filter(constructor -> constructor.getParameterTypes().length == 0).findAny()
         .ifPresent(constructor -> this.defaultConstructor = constructor);
   }
 
   private void addGetMethods(Method[] methods) {
+    // 存储属性的get方法。Map的键为属性名，值为get方法列表。某个属性的get方法用列表存储是因为前期可能会为某一个属性找到多个可能的get方法
     Map<String, List<Method>> conflictingGetters = new HashMap<>();
+    // 过滤出get方法，过滤条件有：无输入参数，符合Java Bean的命名规则; 然后取出方法对应的属性名、方法，放入conflictingGetters
     Arrays.stream(methods).filter(m -> m.getParameterTypes().length == 0 && PropertyNamer.isGetter(m.getName()))
         .forEach(m -> addMethodConflict(conflictingGetters, PropertyNamer.methodToProperty(m.getName()), m));
+    // 如果疑似多个get方法，找出合适的那个
     resolveGetterConflicts(conflictingGetters);
   }
 

@@ -31,6 +31,7 @@ public class ExceptionUtil {
     Throwable unwrapped = wrapped;
     while (true) {
       if (unwrapped instanceof InvocationTargetException) {
+        // 反射调用函数时，函数可能抛出各种异常，所以会被JDK封装为统一的受检异常 InvocationTargetException
         unwrapped = ((InvocationTargetException) unwrapped).getTargetException();
       } else if (unwrapped instanceof UndeclaredThrowableException) {
         unwrapped = ((UndeclaredThrowableException) unwrapped).getUndeclaredThrowable();
